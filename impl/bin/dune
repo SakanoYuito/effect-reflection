@@ -1,0 +1,11 @@
+(executable
+ (public_name reflection)
+ (name main)
+ (modules main)
+ (libraries reflection))
+
+(executable
+ (public_name reflection-repl)
+ (name repl)
+ (modules repl)
+ (libraries reflection))

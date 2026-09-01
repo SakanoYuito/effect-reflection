@@ -1,0 +1,7 @@
+(library
+ (name reflection))
+
+(ocamllex ds_lexer)
+
+(menhir 
+ (modules ds_parser))

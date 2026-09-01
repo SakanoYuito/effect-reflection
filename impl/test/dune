@@ -1,0 +1,17 @@
+(tests
+ (names 
+  test_fresh
+  test_ds_pretty
+  test_cps_pretty
+  test_ds_free_vars
+  test_ds_subst
+  test_cps_translate
+  test_ds_translate
+  test_ds_parse
+  test_cps_free_vars
+  test_cps_subst
+  test_cps_reduce_root
+  test_ds_context
+  test_ds_reduce_root
+  test_repl_state)
+ (libraries reflection))
