@@ -1,4 +1,4 @@
-module Reflect1 where
+module _Reflect1 where
 
 open import Relation.Binary.PropositionalEquality
 open ≡-Reasoning
