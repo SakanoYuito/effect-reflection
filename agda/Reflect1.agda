@@ -1,3 +1,4 @@
+-- left inverse
 module Reflect1 where
 
 open import Relation.Binary.PropositionalEquality
@@ -11,9 +12,7 @@ open import Extensionality
 
 -- lemma 
 interleaved mutual
-  correctV : {var : Set} 
-           → (v : DS.value[ var ]) 
-           → dsV (cpsV v) ≡ v
+  -- ds (P : J : M) = M♯♯[ J♭♭[ P ]]
   correctP : {μ : CPS.Mode}
            → {var : Set} 
            → (p : DS.comp[ var ]) 
@@ -21,6 +20,11 @@ interleaved mutual
            → (m : CPS.mcont[ var ] μ)
            → dsP (cpsP p j m)
            ≡ DS.plugM (dsM m) (DS.plug (dsJ j) p)
+  -- dsV (cpsV V) = V 
+  correctV : {var : Set} 
+           → (v : DS.value[ var ]) 
+           → dsV (cpsV v) ≡ v
+
 
   correctV (DS.Var x) = refl
   correctV (DS.Num n) = refl

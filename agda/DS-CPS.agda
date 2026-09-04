@@ -17,6 +17,11 @@ interleaved mutual
         → CPS.cont[ var ] μ 
         → CPS.mcont[ var ] μ
         → CPS.term[ var ]
+  cpsF  : {var : Set}
+        → {μ : CPS.Mode}
+        → DS.PCtx[ var ]
+        → CPS.cont[ var ] μ
+        → CPS.cont[ var ] μ
 
   -- value translation V†
   --- x† = x
@@ -47,13 +52,26 @@ interleaved mutual
   cpsP (DS.Op v)       j m = CPS.Op m (cpsV v) j
 
 
+  -- Pure context translation (F : J)
+  -- [] : j = j 
+  cpsF DS.FHole j = j
+  -- F[let x = [] in P] : j 
+  --  = (λx. λj. λm. P : j : m) :: (F : j) 
+  cpsF (DS.FLet f p) j = CPS.JCons (CPS.KLet (λ x → cpsP (p x) CPS.JVar CPS.MVar)) (cpsF f j)
+
+
+
+-- top level translation
+cps : {var : Set} → DS.comp[ var ] → CPS.term[ var ] 
+cps p = cpsP p CPS.JVar CPS.MVar
+
 -- examples 
 
 cps-val1 : {var : Set} → cpsV (DS.val1 {var}) ≡ CPS.val1
 cps-val1 = refl
 
-cps-comp1 : {var : Set} → cpsP (DS.comp1 {var}) CPS.JVar CPS.MVar ≡ CPS.term1
+cps-comp1 : {var : Set} → cps (DS.comp1 {var}) ≡ CPS.term1
 cps-comp1 = refl
 
-cps-comp2 : {var : Set} → cpsP (DS.comp2 {var}) CPS.JVar CPS.MVar ≡ CPS.term2
+cps-comp2 : {var : Set} → cps (DS.comp2 {var}) ≡ CPS.term2
 cps-comp2 = refl

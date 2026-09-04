@@ -1,3 +1,4 @@
+-- right inverse
 module Reflect2 where
 
 open import Relation.Binary.PropositionalEquality
@@ -16,16 +17,20 @@ baseJ CPS.current = CPS.JVar
 baseJ CPS.stored  = CPS.JNil
 
 interleaved mutual
+  -- (ds P) : j : m = P 
   correctP  : {var : Set}
             → (p : CPS.term[ var ])
             → cpsP (dsP p) CPS.JVar CPS.MVar ≡ p
+  -- lemmas
+  -- (M♯♯[ J♭♭[ P ]]) : j : m = P : J : M
   correctJM : {μ : CPS.Mode}
             → {var : Set}
             → (m : CPS.mcont[ var ] μ)
             → (j : CPS.cont[ var ] μ)
             → (p : DS.comp[ var ])
             → cpsP (DS.plugM (dsM m) (DS.plug (dsJ j) p)) CPS.JVar CPS.MVar
-            ≡ cpsP p j m
+            ≡ cpsP p j m 
+  -- (J♭♭[ P ]) : j : M = P : J : M 
   correctJ  : {μ : CPS.Mode}
             → {var : Set}
             → (m : CPS.mcont[ var ] μ)
@@ -33,13 +38,16 @@ interleaved mutual
             → (p : DS.comp[ var ])
             → cpsP (DS.plug (dsJ j) p) (baseJ μ) m 
             ≡ cpsP p j m
+  -- cpsV (dsV V) = V
   correctV  : {var : Set}
             → (v : CPS.value[ var ])
             → cpsV (dsV v) ≡ v
+  -- λx. λj. λm. (cps (ds P)) ≡ λx. λj. λm. P
   correctK  : {var : Set}
             → (q : var → CPS.term[ var ])
             → CPS.KLet (λ x → cpsP (dsP (q x)) CPS.JVar CPS.MVar)
             ≡ CPS.KLet q
+  -- λv. λr. λj. λm. (cps (ds P)) ≡ λv. λr. λj. λm. P
   correctH  : {var : Set}
             → (h : CPS.handler[ var ])
             → CPS.HFun (λ v r → cpsP (dsH h v r) CPS.JVar CPS.MVar) 

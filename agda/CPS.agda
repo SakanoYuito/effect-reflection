@@ -564,6 +564,47 @@ module Reasoning {var : Set} where
   _∎ : (p : term[ var ]) → Reduce* p p
   p ∎ = Refl
 
+module OneStepReasoning {var : Set} where
+
+  data Phase : Set where
+    before after : Phase
+
+  data Chain : Phase → term[ var ] → term[ var ] → Set where
+    equal  : {p q : term[ var ]}
+           → p ≡ q
+           → Chain before p q
+
+    single : {p q : term[ var ]}
+           → Reduce p q
+           → Chain after p q
+
+  infix  1 begin_
+  infixr 2 _⟶⟨_⟩_ _≡⟨_⟩_
+  infix  3 _∎
+
+  begin_ : {p q : term[ var ]}
+         → Chain after p q
+         → Reduce p q
+  begin single red = red
+
+  _≡⟨_⟩_ : {s : Phase}
+           → (p {q r} : term[ var ])
+           → p ≡ q
+           → Chain s q r
+           → Chain s p r
+  p ≡⟨ refl ⟩ chain = chain
+
+
+  _⟶⟨_⟩_ : (p {q r} : term[ var ])
+           → Reduce p q
+           → Chain before q r
+           → Chain after p r
+  p ⟶⟨ red ⟩ equal refl = single red
+
+  _∎ : (p : term[ var ])
+      → Chain before p p
+  p ∎ = equal refl
+
 -- examples
 -- λj. λm. ((λv. λj'. λm'. j' (v + 2) m') :: j) 1 m
 -- = λj. λm. j 3 m
