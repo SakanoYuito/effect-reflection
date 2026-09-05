@@ -270,10 +270,103 @@ interleaved mutual
   -- J → J' implies J♭♭[P] → J'♭♭[P]
   correctJ  : {var : Set}
             → {μ : CPS.Mode}
-            → {j j' : CPS.cont[var] μ}
+            → {j j' : CPS.cont[ var ] μ}
             → (p : DS.comp[ var ])
             → CPS.ReduceJ j j'
             → DS.Reduce (DS.plug (dsJ j) p) (DS.plug (dsJ j') p)
+  -- M → M' implies M♯♯[P] → M'♯♯[P]
+  correctM  : {var : Set}
+            → {μ : CPS.Mode}
+            → {m m' : CPS.mcont[ var ] μ}
+            → (p : DS.comp[ var ])
+            → CPS.ReduceM m m'
+            → DS.Reduce (DS.plugM (dsM m) p) (DS.plugM (dsM m') p)
+  -- V → V' implies V♮ → V'♮
+  correctV  : {var : Set}
+            → {v v' : CPS.value[ var ]}
+            → CPS.ReduceV v v' 
+            → DS.ReduceV (dsV v) (dsV v')
+  -- K → K' implies K♭ → K'♭
+  correctK  : {var : Set}
+            → {k k' : CPS.frame[ var ]}
+            → (p : DS.comp[ var ])
+            → CPS.ReduceK k k'
+            → DS.Reduce (DS.plug (dsK k) p) (DS.plug (dsK k') p)
+  -- H → H' implies H‡ → H'‡
+  correctH  : {var : Set}
+            → {h h' : CPS.handler[ var ]}
+            → CPS.ReduceH h h'
+            → (v r : var)
+            → DS.Reduce (dsH h v r) (dsH h' v r)
+
+  correctV CPS.REtaV = DS.REtaV
+  correctV (CPS.RFun x) = DS.RFun λ v → correctP (x v)
+
+  correctK p (CPS.RKLet x) = DS.RLet₂ λ v → correctP (x v)
+
+  correctH (CPS.RHFun {p} {p'} x) v r = correctP (x v r) 
+
+  correctJ p (CPS.REtaLet {j = j}) = reduce-plugF (dsJ j) DS.REtaLet
+  correctJ p (CPS.RAssoc {k₁ = CPS.KLet q} {k₂ = CPS.KLet r} {j = j}) = 
+    begin
+      DS.plug (dsJ (CPS.JCons (CPS.KLet q) (CPS.JCons (CPS.KLet r) j))) p
+    ⟶⟨ reduce-plugF (dsJ j) DS.RAssoc ⟩
+      DS.plug (dsJ j)
+        (DS.Let p (λ x → 
+            DS.Let (dsP (q x)) (λ x₁ → dsP (r x₁))))
+    ≡⟨ cong (λ body → DS.plug (dsJ j) (DS.Let p body)) 
+        (extensionality λ x → 
+          sym (ds-JMsubst (q x) (CPS.JCons (CPS.KLet r) CPS.JVar) CPS.MVar)) ⟩
+      DS.plug (dsJ j) 
+        (DS.Let p (λ x → 
+            dsP (CPS.JMSubst (q x) (CPS.JCons (CPS.KLet r) CPS.JVar) CPS.MVar)))
+    ≡⟨ refl ⟩
+      DS.plug
+        (dsJ (CPS.JCons (CPS.composeK (CPS.KLet q) (CPS.KLet r)) j)) p
+    ∎
+    where open DS.OneStepReasoning
+  correctJ p (CPS.RJConsK {j = j} (CPS.RKLet red)) = reduce-plugF (dsJ j) (DS.RLet₂ λ x → correctP (red x))
+  correctJ p (CPS.RJConsJ {k = CPS.KLet q} red) = correctJ (DS.Let p (λ x → dsP (q x))) red
+
+  correctM p (CPS.RMConsJ {j = j} {j'} {CPS.HFun h} {m} red) = 
+    begin
+      DS.plugM (dsM (CPS.MCons j (CPS.HFun h) m)) p
+    ≡⟨ refl ⟩
+      DS.plugM (dsM m)
+        (DS.plug (dsJ j) (DS.Handle p (λ v r → dsP (h v r))))
+    ⟶⟨ reduce-plugG (dsM m) (correctJ (DS.Handle p (λ v r → dsP (h v r)))  red) ⟩
+      DS.plugM (dsM m)
+        (DS.plug (dsJ j') (DS.Handle p (λ v r → dsP (h v r))))
+    ≡⟨ refl ⟩
+      DS.plugM (dsM (CPS.MCons j' (CPS.HFun h) m)) p
+    ∎
+    where open DS.OneStepReasoning
+  correctM p (CPS.RMConsH {j = j} {CPS.HFun h} {CPS.HFun h'} {m} red) =
+    begin
+      DS.plugM (dsM (CPS.MCons j (CPS.HFun h) m)) p
+    ≡⟨ refl ⟩
+      DS.plugM (dsM m)
+        (DS.plug (dsJ j) (DS.Handle p (λ v r → dsP (h v r))))
+    ⟶⟨ reduce-plug m j (DS.RHandle₂ λ x k → correctH red x k) ⟩
+      DS.plugM (dsM m)
+        (DS.plug (dsJ j) (DS.Handle p (λ v r → dsP (h' v r))))
+    ≡⟨ refl ⟩
+      DS.plugM (dsM (CPS.MCons j (CPS.HFun h') m)) p
+    ∎
+    where open DS.OneStepReasoning
+  correctM p (CPS.RMConsM {j = j} {CPS.HFun h} {m} {m'} red) =
+    begin
+      DS.plugM (dsM (CPS.MCons j (CPS.HFun h) m)) p
+    ≡⟨ refl ⟩
+      DS.plugM (dsM m)
+        (DS.plug (dsJ j) (DS.Handle p (λ v r → dsP (h v r))))
+    ⟶⟨ correctM (DS.plug (dsJ j) (DS.Handle p (λ v r → dsP (h v r)))) red ⟩
+      DS.plugM (dsM m')
+        (DS.plug (dsJ j) (DS.Handle p (λ v r → dsP (h v r))))
+    ≡⟨ refl ⟩
+      DS.plugM (dsM (CPS.MCons j (CPS.HFun h) m')) p
+    ∎
+    where open DS.OneStepReasoning
 
   correctP (CPS.RBetaV {p = p} {v} {j} {m} {p'} x) = 
     begin
@@ -358,29 +451,158 @@ interleaved mutual
       ds-subst2-op {jc = jc} sub 
         rewrite sym (ds-resumption jc) = ds-subst2 sub
 
+  -- congruence rules
   correctP (CPS.RSendJ {j = j} {j'} {v} {m} x) = 
     begin
       dsP (CPS.Send j v m)
     ≡⟨ refl ⟩
       DS.plugM (dsM m) (DS.plug (dsJ j) (DS.Return (dsV v)))
-    ⟶⟨ {!   !} ⟩
-      {!   !}
-    ≡⟨ {!   !} ⟩
-      {!   !}
-    ≡⟨ {!   !} ⟩
+    ⟶⟨ reduce-plugG (dsM m) (correctJ (DS.Return (dsV v)) x) ⟩
+      DS.plugM (dsM m) (DS.plug (dsJ j') (DS.Return (dsV v)))
+    ≡⟨ refl ⟩
       dsP (CPS.Send j' v m)
     ∎
     where open DS.OneStepReasoning
-  correctP (CPS.RSendV x) = {!   !}
-  correctP (CPS.RSendM x) = {!   !}
-  correctP (CPS.RAppV x) = {!   !}
-  correctP (CPS.RAppW x) = {!   !}
-  correctP (CPS.RAppJ x) = {!   !}
-  correctP (CPS.RAppM x) = {!   !}
-  correctP (CPS.RAddV x) = {!   !}
-  correctP (CPS.RAddW x) = {!   !}
-  correctP (CPS.RAddJ x) = {!   !}
-  correctP (CPS.RAddM x) = {!   !}
-  correctP (CPS.ROpJ x) = {!   !}
-  correctP (CPS.ROpV x) = {!   !}
-  correctP (CPS.ROpM x) = {!   !}
+  correctP (CPS.RSendV {j = j} {v} {v'} {m} x) =
+    begin
+      dsP (CPS.Send j v m)
+    ≡⟨ refl ⟩
+      DS.plugM (dsM m) (DS.plug (dsJ j) (DS.Return (dsV v)))
+    ⟶⟨ reduce-plug m j (DS.RReturn (correctV x)) ⟩
+      DS.plugM (dsM m) (DS.plug (dsJ j) (DS.Return (dsV v')))
+    ≡⟨ refl ⟩
+      dsP (CPS.Send j v' m)
+    ∎
+    where open DS.OneStepReasoning
+  correctP (CPS.RSendM {j = j} {v} {m} {m'} x) =
+    begin
+      dsP (CPS.Send j v m)
+    ≡⟨ refl ⟩
+      DS.plugM (dsM m) (DS.plug (dsJ j) (DS.Return (dsV v)))
+    ⟶⟨ correctM (DS.plug (dsJ j) (DS.Return (dsV v))) x ⟩
+      DS.plugM (dsM m') (DS.plug (dsJ j) (DS.Return (dsV v)))
+    ≡⟨ refl ⟩
+      dsP (CPS.Send j v m')
+    ∎
+    where open DS.OneStepReasoning
+  correctP (CPS.RAppV {v = v} {v'} {w} {j} {m} x) =
+    begin
+      dsP (CPS.App v w j m)
+    ≡⟨ refl ⟩
+      DS.plugM (dsM m) (DS.plug (dsJ j) (DS.App (dsV v) (dsV w)))
+    ⟶⟨ reduce-plug m j (DS.RApp₁ (correctV x)) ⟩
+      DS.plugM (dsM m) (DS.plug (dsJ j) (DS.App (dsV v') (dsV w)))
+    ≡⟨ refl ⟩
+      dsP (CPS.App v' w j m)
+    ∎
+    where open DS.OneStepReasoning
+  correctP (CPS.RAppW {v = v} {w} {w'} {j} {m} x) =
+    begin
+      dsP (CPS.App v w j m)
+    ≡⟨ refl ⟩
+      DS.plugM (dsM m) (DS.plug (dsJ j) (DS.App (dsV v) (dsV w)))
+    ⟶⟨ reduce-plug m j (DS.RApp₂ (correctV x)) ⟩
+      DS.plugM (dsM m) (DS.plug (dsJ j) (DS.App (dsV v) (dsV w')))
+    ≡⟨ refl ⟩
+      dsP (CPS.App v w' j m)
+    ∎
+    where open DS.OneStepReasoning
+  correctP (CPS.RAppJ {v = v} {w} {j} {j'} {m} x) =
+    begin
+      dsP (CPS.App v w j m)
+    ≡⟨ refl ⟩
+      DS.plugM (dsM m) (DS.plug (dsJ j) (DS.App (dsV v) (dsV w)))
+    ⟶⟨ reduce-plugG (dsM m) (correctJ (DS.App (dsV v) (dsV w)) x) ⟩
+      DS.plugM (dsM m) (DS.plug (dsJ j') (DS.App (dsV v) (dsV w)))
+    ≡⟨ refl ⟩
+      dsP (CPS.App v w j' m)
+    ∎
+    where open DS.OneStepReasoning 
+  correctP (CPS.RAppM {v = v} {w} {j} {m} {m'} x) =
+    begin
+      dsP (CPS.App v w j m)
+    ≡⟨ refl ⟩
+      DS.plugM (dsM m) (DS.plug (dsJ j) (DS.App (dsV v) (dsV w)))
+    ⟶⟨ correctM (DS.plug (dsJ j) (DS.App (dsV v) (dsV w))) x ⟩
+      DS.plugM (dsM m') (DS.plug (dsJ j) (DS.App (dsV v) (dsV w)))
+    ≡⟨ refl ⟩
+      dsP (CPS.App v w j m')
+    ∎
+    where open DS.OneStepReasoning 
+  correctP (CPS.RAddV {v = v} {v'} {w} {j} {m} x) = 
+    begin
+      dsP (CPS.Add j v w m)
+    ≡⟨ refl ⟩
+      DS.plugM (dsM m) (DS.plug (dsJ j) (DS.Add (dsV v) (dsV w)))
+    ⟶⟨ reduce-plug m j (DS.RAdd₁ (correctV x)) ⟩
+      DS.plugM (dsM m) (DS.plug (dsJ j) (DS.Add (dsV v') (dsV w)))
+    ≡⟨ refl ⟩
+      dsP (CPS.Add j v' w m)
+    ∎
+    where open DS.OneStepReasoning
+  correctP (CPS.RAddW {v = v} {w} {w'} {j} {m} x) = 
+    begin
+      dsP (CPS.Add j v w m)
+    ≡⟨ refl ⟩
+      DS.plugM (dsM m) (DS.plug (dsJ j) (DS.Add (dsV v) (dsV w)))
+    ⟶⟨ reduce-plug m j (DS.RAdd₂ (correctV x)) ⟩
+      DS.plugM (dsM m) (DS.plug (dsJ j) (DS.Add (dsV v) (dsV w')))
+    ≡⟨ refl ⟩
+      dsP (CPS.Add j v w' m)
+    ∎
+    where open DS.OneStepReasoning
+  correctP (CPS.RAddJ {v = v} {w} {j} {j'} {m} x) = 
+    begin
+      dsP (CPS.Add j v w m)
+    ≡⟨ refl ⟩
+      DS.plugM (dsM m) (DS.plug (dsJ j) (DS.Add (dsV v) (dsV w)))
+    ⟶⟨ reduce-plugG (dsM m) (correctJ (DS.Add (dsV v) (dsV w)) x) ⟩
+      DS.plugM (dsM m) (DS.plug (dsJ j') (DS.Add (dsV v) (dsV w)))
+    ≡⟨ refl ⟩
+      dsP (CPS.Add j' v w m)
+    ∎
+    where open DS.OneStepReasoning
+  correctP (CPS.RAddM {v = v} {w} {j} {m} {m'} x) = 
+    begin
+      dsP (CPS.Add j v w m)
+    ≡⟨ refl ⟩
+      DS.plugM (dsM m) (DS.plug (dsJ j) (DS.Add (dsV v) (dsV w)))
+    ⟶⟨ correctM (DS.plug (dsJ j) (DS.Add (dsV v) (dsV w))) x ⟩
+      DS.plugM (dsM m') (DS.plug (dsJ j) (DS.Add (dsV v) (dsV w)))
+    ≡⟨ refl ⟩
+      dsP (CPS.Add j v w m')
+    ∎
+    where open DS.OneStepReasoning
+  correctP (CPS.ROpJ {j = j} {j'} {v} {m} x) = 
+    begin
+      dsP (CPS.Op m v j)
+    ≡⟨ refl ⟩
+      DS.plugM (dsM m) (DS.plug (dsJ j) (DS.Op (dsV v)))
+    ⟶⟨ reduce-plugG (dsM m) (correctJ (DS.Op (dsV v)) x) ⟩
+      DS.plugM (dsM m) (DS.plug (dsJ j') (DS.Op (dsV v)))
+    ≡⟨ refl ⟩
+      dsP (CPS.Op m v j')
+    ∎
+    where open DS.OneStepReasoning
+  correctP (CPS.ROpV {j = j} {v} {v'} {m} x) = 
+    begin
+      dsP (CPS.Op m v j)
+    ≡⟨ refl ⟩
+      DS.plugM (dsM m) (DS.plug (dsJ j) (DS.Op (dsV v)))
+    ⟶⟨ reduce-plug m j (DS.ROp (correctV x)) ⟩
+      DS.plugM (dsM m) (DS.plug (dsJ j) (DS.Op (dsV v')))
+    ≡⟨ refl ⟩
+      dsP (CPS.Op m v' j)
+    ∎
+    where open DS.OneStepReasoning
+  correctP (CPS.ROpM {j = j} {v} {m} {m'} x) = 
+    begin
+      dsP (CPS.Op m v j)
+    ≡⟨ refl ⟩
+      DS.plugM (dsM m) (DS.plug (dsJ j) (DS.Op (dsV v)))
+    ⟶⟨ correctM (DS.plug (dsJ j) (DS.Op (dsV v))) x ⟩
+      DS.plugM (dsM m') (DS.plug (dsJ j) (DS.Op (dsV v)))
+    ≡⟨ refl ⟩
+      dsP (CPS.Op m' v j)
+    ∎
+    where open DS.OneStepReasoning
