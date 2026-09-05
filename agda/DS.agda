@@ -1,5 +1,6 @@
 module DS where
 open import Data.Nat using (ℕ; zero; suc; _+_)
+open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 
 -- Terms
 interleaved mutual
@@ -276,6 +277,41 @@ module Reasoning {var : Set} where
 
   _∎ : (p : comp[ var ]) → Reduce* p p
   p ∎ = Refl
+
+module OneStepReasoning {var : Set} where
+
+  data Phase : Set where
+    before after : Phase
+
+  data Chain : Phase → comp[ var ] → comp[ var ] → Set where
+    equal  : {p q : comp[ var ]} → p ≡ q → Chain before p q
+    single : {p q : comp[ var ]} → Reduce p q → Chain after p q
+
+  infix  1 begin_
+  infixr 2 _⟶⟨_⟩_ _≡⟨_⟩_
+  infix  3 _∎
+
+  begin_ : {p q : comp[ var ]}
+         → Chain after p q
+         → Reduce p q
+  begin single red = red
+
+  _≡⟨_⟩_ : {s : Phase}
+         → (p {q r} : comp[ var ])
+         → p ≡ q
+         → Chain s q r
+         → Chain s p r
+  p ≡⟨ refl ⟩ chain = chain
+
+  _⟶⟨_⟩_ : (p {q r} : comp[ var ])
+           → Reduce p q
+           → Chain before q r
+           → Chain after p r
+  p ⟶⟨ red ⟩ equal refl = single red
+
+  _∎ : (p : comp[ var ]) → Chain before p p
+  p ∎ = equal refl
+
 
 
 -- examples

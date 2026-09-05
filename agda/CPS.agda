@@ -570,13 +570,8 @@ module OneStepReasoning {var : Set} where
     before after : Phase
 
   data Chain : Phase → term[ var ] → term[ var ] → Set where
-    equal  : {p q : term[ var ]}
-           → p ≡ q
-           → Chain before p q
-
-    single : {p q : term[ var ]}
-           → Reduce p q
-           → Chain after p q
+    equal  : {p q : term[ var ]} → p ≡ q → Chain before p q
+    single : {p q : term[ var ]} → Reduce p q → Chain after p q
 
   infix  1 begin_
   infixr 2 _⟶⟨_⟩_ _≡⟨_⟩_
@@ -601,8 +596,7 @@ module OneStepReasoning {var : Set} where
            → Chain after p r
   p ⟶⟨ red ⟩ equal refl = single red
 
-  _∎ : (p : term[ var ])
-      → Chain before p p
+  _∎ : (p : term[ var ]) → Chain before p p
   p ∎ = equal refl
 
 -- examples
